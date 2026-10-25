@@ -1,4 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+generate_html_app.py
+Generates the interactive single-page web portal for Radwa Kamal's Master's & PhD Scholarships Hub.
+Includes:
+- Detailed requirements for each scholarship
+- CV Subtraction / Gap Analysis (ما يستوفيه ملف رضوى vs المتبقي لاستيفاء الشروط 100%)
+- Match Rate & Readiness badges
+- Instant live search & multi-filtering
+- In-browser LocalStorage editing and persistence
+- SheetJS instant Excel export with all new columns
+"""
 import sys
 import io
 import json
@@ -17,11 +28,11 @@ html_template = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة وقاعدة بيانات منح الماجستير والدكتوراه | رضوى كمال</title>
+    <title>بوابة وقاعدة بيانات منح الماجستير والدكتوراه ومطابقة الـ CV | رضوى كمال</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- SheetJS for Instant Excel Export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -30,7 +41,7 @@ html_template = """<!DOCTYPE html>
         :root {
             --bg-primary: #f8fafc;
             --bg-secondary: #ffffff;
-            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-card: rgba(255, 255, 255, 0.96);
             --bg-card-hover: #f1f5f9;
             --border-color: #e2e8f0;
             --text-main: #0f172a;
@@ -56,8 +67,8 @@ html_template = """<!DOCTYPE html>
         [data-theme="dark"] {
             --bg-primary: #0b0f19;
             --bg-secondary: #111827;
-            --bg-card: rgba(17, 24, 39, 0.75);
-            --bg-card-hover: rgba(31, 41, 55, 0.85);
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --bg-card-hover: rgba(31, 41, 55, 0.95);
             --border-color: rgba(255, 255, 255, 0.08);
             --text-main: #f9fafb;
             --text-muted: #9ca3af;
@@ -98,26 +109,14 @@ html_template = """<!DOCTYPE html>
             right: 15%;
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 0%, rgba(37, 99, 235, 0.04) 60%, transparent 70%);
-            filter: blur(80px);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .ambient-glow-2 {
-            position: fixed;
-            bottom: -200px;
-            left: 10%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(124, 58, 237, 0.06) 0%, rgba(217, 119, 6, 0.04) 60%, transparent 70%);
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(37, 99, 235, 0.05) 50%, transparent 70%);
             filter: blur(80px);
             z-index: -1;
             pointer-events: none;
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1750px;
             margin: 0 auto;
             padding: 24px 20px;
         }
@@ -146,27 +145,27 @@ html_template = """<!DOCTYPE html>
         }
 
         .header-badge-icon {
-            width: 54px;
-            height: 54px;
-            border-radius: 14px;
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
             background: linear-gradient(135deg, var(--primary), var(--accent));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
+            font-size: 28px;
             box-shadow: 0 8px 16px rgba(5, 150, 105, 0.25);
             color: #fff;
         }
 
         .header-title h1 {
-            font-size: 23px;
+            font-size: 24px;
             font-weight: 800;
             color: var(--text-main);
             margin-bottom: 4px;
         }
 
         .header-title p {
-            font-size: 13px;
+            font-size: 13.5px;
             color: var(--text-muted);
         }
 
@@ -177,30 +176,40 @@ html_template = """<!DOCTYPE html>
             flex-wrap: wrap;
         }
 
-        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 10px 18px;
-            font-size: 13px;
+            border-radius: var(--radius-md);
+            font-size: 13.5px;
             font-weight: 700;
-            border-radius: var(--radius-sm);
-            border: none;
             cursor: pointer;
+            border: none;
             transition: var(--transition);
             text-decoration: none;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: white;
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-accent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
         }
 
         .btn-secondary {
@@ -211,54 +220,116 @@ html_template = """<!DOCTYPE html>
 
         .btn-secondary:hover {
             background: var(--bg-card-hover);
-            border-color: var(--primary);
             transform: translateY(-2px);
         }
 
         .theme-toggle-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
             color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             font-size: 18px;
             transition: var(--transition);
         }
 
         .theme-toggle-btn:hover {
-            border-color: var(--warning);
-            transform: rotate(20deg);
+            background: var(--bg-card-hover);
+            transform: rotate(15deg);
         }
 
-        /* Stats KPI Bar */
+        /* Radwa Profile Banner */
+        .profile-banner {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(16, 185, 129, 0.08));
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            border-radius: var(--radius-lg);
+            padding: 18px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .profile-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .profile-text h3 {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 2px;
+        }
+
+        .profile-text p {
+            font-size: 12.5px;
+            color: var(--text-muted);
+        }
+
+        .profile-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .ptag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
         }
 
         .stat-card {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
             padding: 18px 20px;
+            box-shadow: var(--shadow);
             display: flex;
             align-items: center;
             gap: 16px;
-            box-shadow: var(--shadow);
             transition: var(--transition);
         }
 
         .stat-card:hover {
             transform: translateY(-3px);
-            border-color: rgba(5, 150, 105, 0.3);
+            border-color: var(--primary);
         }
 
         .stat-icon {
@@ -271,140 +342,146 @@ html_template = """<!DOCTYPE html>
             font-size: 22px;
         }
 
-        .stat-icon.total { background: var(--primary-light); color: var(--primary); }
-        .stat-icon.africa { background: var(--warning-light); color: var(--warning); }
-        .stat-icon.masters { background: var(--accent-light); color: var(--accent); }
-        .stat-icon.phd { background: var(--purple-light); color: var(--purple); }
-        .stat-icon.biotech { background: var(--danger-light); color: var(--danger); }
+        .stat-icon.green { background: var(--primary-light); color: var(--primary); }
+        .stat-icon.blue { background: var(--accent-light); color: var(--accent); }
+        .stat-icon.amber { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.purple { background: var(--purple-light); color: var(--purple); }
 
-        .stat-info h3 {
-            font-size: 22px;
+        .stat-data h4 {
+            font-size: 24px;
             font-weight: 800;
-            line-height: 1.1;
+            line-height: 1.2;
+            color: var(--text-main);
         }
 
-        .stat-info p {
-            font-size: 12px;
+        .stat-data p {
+            font-size: 12.5px;
             color: var(--text-muted);
-            margin-top: 3px;
+            font-weight: 600;
         }
 
-        /* Controls & Filters Area */
-        .controls-panel {
+        /* Controls Section */
+        .controls-card {
             background: var(--bg-card);
-            backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-lg);
             padding: 20px 24px;
-            margin-bottom: 24px;
             box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+            margin-bottom: 24px;
         }
 
-        .search-and-select {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .search-wrapper {
-            flex: 1;
-            min-width: 280px;
+        .search-box {
             position: relative;
-        }
-
-        .search-icon {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 16px;
-            pointer-events: none;
+            margin-bottom: 16px;
         }
 
         .search-input {
             width: 100%;
-            padding: 12px 46px 12px 16px;
+            padding: 14px 48px 14px 20px;
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border-color);
             background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
             color: var(--text-main);
-            font-size: 14px;
-            outline: none;
+            font-size: 14.5px;
             transition: var(--transition);
         }
 
         .search-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
-        }
-
-        .select-filter {
-            padding: 12px 18px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            color: var(--text-main);
-            font-size: 14px;
             outline: none;
-            cursor: pointer;
-            min-width: 180px;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
         }
 
-        .select-filter:focus {
-            border-color: var(--accent);
+        .search-icon {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 18px;
         }
 
-        /* Category Filter Tabs */
-        .category-tabs {
+        /* Filter Tabs */
+        .filter-tabs {
             display: flex;
             gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: thin;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
         }
 
         .tab-btn {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
             padding: 8px 16px;
             border-radius: 30px;
             font-size: 12.5px;
-            font-weight: 600;
+            font-weight: 700;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-muted);
             cursor: pointer;
-            white-space: nowrap;
             transition: var(--transition);
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
         }
 
         .tab-btn:hover {
             color: var(--text-main);
-            border-color: var(--primary);
+            border-color: var(--text-muted);
         }
 
         .tab-btn.active {
             background: var(--primary);
-            color: white;
+            color: #ffffff;
             border-color: var(--primary);
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+            box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
         }
 
-        /* Edit status banner */
-        .edit-notice-bar {
-            display: none;
-            background: linear-gradient(90deg, rgba(217, 119, 6, 0.12), rgba(5, 150, 105, 0.12));
-            border: 1px solid var(--warning);
-            border-radius: var(--radius-sm);
-            padding: 12px 20px;
-            justify-content: space-between;
+        .tab-count {
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        .tab-btn.active .tab-count {
+            background: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        /* Secondary Filters */
+        .secondary-filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 16px;
+        }
+
+        .filter-select {
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-main);
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Edit Notice Bar */
+        .edit-notice-bar {
+            background: var(--warning-light);
+            border: 1px solid var(--warning);
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
             animation: fadeIn 0.3s ease;
         }
 
@@ -412,15 +489,23 @@ html_template = """<!DOCTYPE html>
             display: flex;
         }
 
-        /* Table Container */
-        .table-responsive {
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Table Card & Responsive Table */
+        .table-card {
             background: var(--bg-card);
-            backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-responsive {
+            width: 100%;
             overflow-x: auto;
-            position: relative;
         }
 
         table {
@@ -431,81 +516,127 @@ html_template = """<!DOCTYPE html>
         }
 
         th {
-            background: #f1f5f9;
-            color: #334155;
-            font-weight: 700;
+            background: var(--bg-card-hover);
+            color: var(--text-muted);
             padding: 14px 16px;
-            border-bottom: 2px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            font-weight: 700;
+            font-size: 12.5px;
+            border-bottom: 1px solid var(--border-color);
             white-space: nowrap;
         }
 
-        [data-theme="dark"] th {
-            background: rgba(15, 23, 42, 0.95);
-            color: #94a3b8;
-        }
-
         td {
-            padding: 14px 16px;
+            padding: 16px;
             border-bottom: 1px solid var(--border-color);
-            vertical-align: middle;
-            transition: background 0.15s ease;
-            background: var(--bg-secondary);
-        }
-
-        tr:nth-child(even) td {
-            background: rgba(248, 250, 252, 0.7);
-        }
-
-        [data-theme="dark"] tr:nth-child(even) td {
-            background: rgba(30, 41, 59, 0.4);
+            vertical-align: top;
+            transition: background 0.2s ease;
         }
 
         tr:hover td {
-            background: var(--bg-card-hover) !important;
+            background: var(--bg-card-hover);
         }
 
-        /* Editable cell styles */
-        td[contenteditable="true"] {
-            outline: none;
-            border-radius: 4px;
-            transition: all 0.2s;
+        /* Scholarship Cell */
+        .scholarship-title {
+            font-weight: 800;
+            font-size: 14.5px;
+            color: var(--text-main);
+            margin-bottom: 4px;
         }
 
-        td[contenteditable="true"]:focus {
-            background: rgba(5, 150, 105, 0.08) !important;
-            box-shadow: inset 0 0 0 1.5px var(--primary);
+        .scholarship-title-en {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
 
-        /* Badge Pills */
+        .tags-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
         .badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .badge-africa { background: var(--warning-light); color: var(--warning); border: 1px solid rgba(217, 119, 6, 0.25); }
-        .badge-gov { background: var(--accent-light); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.25); }
-        .badge-biotech { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(5, 150, 105, 0.25); }
-        .badge-uni { background: var(--purple-light); color: var(--purple); border: 1px solid rgba(124, 58, 237, 0.25); }
-        .badge-dir { background: rgba(236, 72, 153, 0.12); color: #db2777; border: 1px solid rgba(236, 72, 153, 0.25); }
-
-        .degree-badge {
-            display: inline-block;
             padding: 3px 8px;
             border-radius: 6px;
             font-size: 11px;
             font-weight: 700;
+        }
+
+        .badge-africa { background: #fef3c7; color: #92400e; }
+        .badge-gov { background: #dbeafe; color: #1e40af; }
+        .badge-biotech { background: #dcfce7; color: #166534; }
+        .badge-uni { background: #f3e8ff; color: #6b21a8; }
+        .badge-dir { background: #fce7f3; color: #9d174d; }
+
+        .badge-degree {
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
             color: var(--text-main);
+        }
+
+        /* Match Rate Pill */
+        .match-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 6px;
+        }
+
+        .match-95 { background: linear-gradient(135deg, #059669, #10b981); }
+        .match-90 { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+        .match-85 { background: linear-gradient(135deg, #d97706, #f59e0b); }
+        .match-80 { background: linear-gradient(135deg, #ea580c, #f97316); }
+
+        .readiness-text {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: block;
+            line-height: 1.4;
+        }
+
+        /* Requirements Box */
+        .req-box {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-main);
+            background: var(--bg-primary);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            white-space: pre-line;
+            max-width: 380px;
+        }
+
+        /* CV Gap Analysis Box */
+        .gap-box {
+            font-size: 12px;
+            line-height: 1.6;
+            background: linear-gradient(180deg, rgba(236, 253, 245, 0.4), rgba(239, 246, 255, 0.4));
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            white-space: pre-line;
+            color: var(--text-main);
+            max-width: 440px;
+        }
+
+        [data-theme="dark"] .gap-box {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.2);
         }
 
         .link-pill {
@@ -515,8 +646,8 @@ html_template = """<!DOCTYPE html>
             color: var(--accent);
             text-decoration: none;
             font-weight: 700;
-            font-size: 12px;
-            padding: 5px 10px;
+            font-size: 11.5px;
+            padding: 4px 10px;
             border-radius: 6px;
             background: var(--accent-light);
             border: 1px solid rgba(37, 99, 235, 0.2);
@@ -530,12 +661,11 @@ html_template = """<!DOCTYPE html>
         }
 
         .date-box {
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 600;
             color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            display: block;
+            margin-bottom: 4px;
         }
 
         .date-deadline {
@@ -551,6 +681,7 @@ html_template = """<!DOCTYPE html>
             display: flex;
             align-items: center;
             gap: 6px;
+            justify-content: center;
         }
 
         .icon-btn {
@@ -579,14 +710,14 @@ html_template = """<!DOCTYPE html>
             border-color: var(--danger);
         }
 
-        /* Modal Dialog */
+        /* Detail Modal */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
@@ -605,268 +736,270 @@ html_template = """<!DOCTYPE html>
 
         .modal-box {
             background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
             border-radius: var(--radius-lg);
             width: 100%;
-            max-width: 650px;
-            padding: 28px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            transform: translateY(20px);
-            transition: all 0.3s ease;
+            max-width: 820px;
             max-height: 90vh;
             overflow-y: auto;
-        }
-
-        .modal-overlay.active .modal-box {
-            transform: translateY(0);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 28px;
         }
 
         .modal-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             margin-bottom: 20px;
-            padding-bottom: 12px;
             border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
         }
 
         .modal-header h3 {
-            font-size: 18px;
+            font-size: 19px;
             font-weight: 800;
         }
 
         .close-modal-btn {
             background: none;
             border: none;
-            font-size: 22px;
+            font-size: 24px;
             color: var(--text-muted);
             cursor: pointer;
         }
 
-        .close-modal-btn:hover {
-            color: var(--danger);
-        }
-
         .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
 
         .form-group label {
             display: block;
             font-size: 12.5px;
-            font-weight: 600;
-            color: var(--text-muted);
+            font-weight: 700;
             margin-bottom: 6px;
+            color: var(--text-main);
         }
 
         .form-control {
             width: 100%;
             padding: 10px 14px;
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
             border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
             color: var(--text-main);
-            font-size: 13.5px;
-            outline: none;
+            font-size: 13px;
         }
 
         .form-control:focus {
+            outline: none;
             border-color: var(--primary);
         }
 
-        textarea.form-control {
-            min-height: 80px;
-            resize: vertical;
-        }
-
-        /* Toast notification */
+        /* Toast */
         .toast {
             position: fixed;
             bottom: 30px;
             left: 30px;
-            background: #0f172a;
-            color: white;
-            border-right: 4px solid var(--primary);
-            border-radius: var(--radius-sm);
-            padding: 14px 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 14px 22px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow);
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            font-weight: 600;
+            gap: 12px;
+            font-size: 13.5px;
+            font-weight: 700;
+            z-index: 1000;
             transform: translateY(100px);
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
         }
 
         .toast.show {
             transform: translateY(0);
             opacity: 1;
         }
-
-        /* Responsive tweaks */
-        @media (max-width: 768px) {
-            header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .header-actions {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .btn {
-                flex: 1;
-                justify-content: center;
-            }
-        }
-
-        /* Print styles */
-        @media print {
-            body { background: white !important; color: black !important; }
-            header, .controls-panel, .ambient-glow, .ambient-glow-2, .action-btns-cell, .theme-toggle-btn { display: none !important; }
-            .table-responsive { border: none !important; box-shadow: none !important; }
-            th, td { border: 1px solid #ccc !important; color: black !important; }
-        }
     </style>
 </head>
-<body data-theme="light">
-
+<body>
     <div class="ambient-glow"></div>
-    <div class="ambient-glow-2"></div>
 
     <div class="container">
-        <!-- Top Header -->
+        <!-- Header -->
         <header>
             <div class="header-title-box">
                 <div class="header-badge-icon">🎓</div>
                 <div class="header-title">
-                    <h1>بوابة وقاعدة بيانات منح الماجستير والدكتوراه</h1>
-                    <p>موسوعة شاملة للمنظمات العالمية، الأفريقية، والدول النامية — إعداد مخصص للباحثة / رضوى كمال</p>
+                    <h1>بوابة وقاعدة بيانات منح الماجستير والدكتوراه ومطابقة الـ CV</h1>
+                    <p>الموسوعة الشاملة لفرص الدراسات العليا لطلاب مصر وأفريقيا وتخصصات التكنولوجيا الحيوية والعلوم الطبية</p>
                 </div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="openAddModal()">
-                    <span>➕</span> إضافة منحة جديدة
+                <button class="btn btn-primary" onclick="exportToExcel()">
+                    📊 تصدير Excel بالمطابقة
                 </button>
-                <button class="btn btn-secondary" onclick="exportToExcel()">
-                    <span>📊</span> تصدير إلى Excel
+                <button class="btn btn-accent" onclick="openAddModal()">
+                    ➕ إضافة منحة جديدة
                 </button>
-                <button class="btn btn-secondary" onclick="window.print()">
-                    <span>🖨️</span> طباعة / PDF
+                <button class="btn btn-secondary" onclick="resetToOriginal()" title="استعادة النسخة الأصلية">
+                    🔄 استعادة الأصل
                 </button>
-                <button class="btn btn-secondary" id="resetBtn" onclick="resetToOriginal()">
-                    <span>🔄</span> استعادة الأصل
-                </button>
-                <button class="theme-toggle-btn" onclick="toggleTheme()" title="تبديل المظهر النهاري/الليلي">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="تبديل الوضع الليلي / الفاتح">
                     <span id="themeIcon">🌙</span>
                 </button>
             </div>
         </header>
 
-        <!-- Stats KPI Bar -->
+        <!-- Profile Matching Banner -->
+        <div class="profile-banner">
+            <div class="profile-info">
+                <div class="profile-avatar">RK</div>
+                <div class="profile-text">
+                    <h3>الملف الأكاديمي المرجعي للمطابقة: رضوى كمال (Radwa Kamal, BSc)</h3>
+                    <p>بكالوريوس تكنولوجيا حيوية (MSA: 3.53 / جرينتش بريطانيا: 3.6 First Class) • ورقة بحثية محكمة + 10 بوسترات دولية • مؤسس شركتين ناشئتين • باحثة بمعمل النماذج الأولية</p>
+                </div>
+            </div>
+            <div class="profile-tags">
+                <span class="ptag">🧬 Biotechnology & Genetics</span>
+                <span class="ptag">🤖 AI & Medical Robotics</span>
+                <span class="ptag">🏆 First Class Honours</span>
+                <span class="ptag">🗣️ English C1 / Dual Degree</span>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon total">🏛️</div>
-                <div class="stat-info">
-                    <h3 id="statTotal">0</h3>
+                <div class="stat-icon green">📊</div>
+                <div class="stat-data">
+                    <h4 id="statTotal">148</h4>
                     <p>إجمالي الفرص والمنظمات</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon africa">🌍</div>
-                <div class="stat-info">
-                    <h3 id="statAfrica">0</h3>
+                <div class="stat-icon green">⚡</div>
+                <div class="stat-data">
+                    <h4 id="statMatch95">42</h4>
+                    <p>جاهزية فائقة (95%+ تنافسية فورية)</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">🌍</div>
+                <div class="stat-data">
+                    <h4 id="statAfrica">26</h4>
                     <p>أفريقيا والدول النامية</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon masters">📚</div>
-                <div class="stat-info">
-                    <h3 id="statMasters">0</h3>
-                    <p>برامج الماجستير</p>
+                <div class="stat-icon purple">🧬</div>
+                <div class="stat-data">
+                    <h4 id="statBiotech">8</h4>
+                    <p>معاهد البيوتكنولوجي المتخصصة</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon phd">🔬</div>
-                <div class="stat-info">
-                    <h3 id="statPhd">0</h3>
-                    <p>الدكتوراه والزمالات البحثية</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon biotech">🧬</div>
-                <div class="stat-info">
-                    <h3 id="statBiotech">0</h3>
-                    <p>مراكز البيوتكنولوجي والعلوم</p>
+                <div class="stat-icon amber">💼</div>
+                <div class="stat-data">
+                    <h4 id="statPhd">31</h4>
+                    <p>وظائف دكتوراه ممولة وأدلة بحث</p>
                 </div>
             </div>
         </div>
 
-        <!-- Controls & Filters Panel -->
-        <div class="controls-panel">
-            <div class="search-and-select">
-                <div class="search-wrapper">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="searchInput" class="search-input" placeholder="ابحثي بأي كلمة: اسم المنحة، الدولة، الشروط، الرابط، المواعيد..." oninput="handleSearch()">
-                </div>
-                <select id="degreeFilter" class="select-filter" onchange="applyFilters()">
-                    <option value="all">كل المراحل الدراسية</option>
-                    <option value="ماجستير">ماجستير فقط</option>
-                    <option value="دكتوراه">دكتوراه فقط</option>
-                    <option value="ماجستير ودكتوراه">ماجستير ودكتوراه معاً</option>
-                </select>
-                <select id="fundingFilter" class="select-filter" onchange="applyFilters()">
-                    <option value="all">كل أنواع التمويل</option>
-                    <option value="تمويل كامل">تمويل كامل (100%)</option>
-                    <option value="وظيفة">وظيفة بحثية براتب</option>
-                </select>
+        <!-- Controls Card -->
+        <div class="controls-card">
+            <!-- Live Search -->
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="ابحثي باسم المنحة، الدولة، التخصص، شروط الآيلتس، أو ما ينقصك في الـ CV..." oninput="handleSearch()">
             </div>
 
-            <!-- Category Tabs -->
-            <div class="category-tabs" id="categoryTabs">
-                <button class="tab-btn active" onclick="setCategory('all', this)">⭐ عرض الكل (<span id="countAll">0</span>)</button>
-                <button class="tab-btn" onclick="setCategory('أفريقيا والدول النامية', this)">🌍 أفريقيا والدول النامية (<span id="countAfrica">0</span>)</button>
-                <button class="tab-btn" onclick="setCategory('المنح الحكومية والدولية الكبرى', this)">🏛️ المنح الحكومية العالمية (<span id="countGov">0</span>)</button>
-                <button class="tab-btn" onclick="setCategory('مراكز ومعاهد التكنولوجيا الحيوية والعلوم الطبية', this)">🧬 البيوتكنولوجي والمراكز البحثية (<span id="countBiotechTab">0</span>)</button>
-                <button class="tab-btn" onclick="setCategory('منح الجامعات العالمية والمؤسسات المرموقة', this)">🎓 الجامعات والمؤسسات الكبرى (<span id="countUni">0</span>)</button>
-                <button class="tab-btn" onclick="setCategory('محركات البحث وأدلة وظائف الدكتوراه', this)">🔍 محركات وأدلة الدكتوراه (<span id="countDir">0</span>)</button>
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <button class="tab-btn active" onclick="setCategory('all', this)">
+                    كل المنح <span class="tab-count" id="countAll">148</span>
+                </button>
+                <button class="tab-btn" onclick="setCategory('أفريقيا والدول النامية', this)">
+                    🌍 أفريقيا والدول النامية <span class="tab-count" id="countAfrica">26</span>
+                </button>
+                <button class="tab-btn" onclick="setCategory('المنح الحكومية والدولية الكبرى', this)">
+                    🏛️ المنح الحكومية العالمية <span class="tab-count" id="countGov">52</span>
+                </button>
+                <button class="tab-btn" onclick="setCategory('مراكز ومعاهد التكنولوجيا الحيوية والعلوم الطبية', this)">
+                    🧬 معاهد البيوتكنولوجي والطب <span class="tab-count" id="countBiotechTab">8</span>
+                </button>
+                <button class="tab-btn" onclick="setCategory('منح الجامعات العالمية والمؤسسات المرموقة', this)">
+                    🎓 الجامعات العالمية الكبرى <span class="tab-count" id="countUni">31</span>
+                </button>
+                <button class="tab-btn" onclick="setCategory('محركات البحث وأدلة وظائف الدكتوراه', this)">
+                    💼 وظائف وأدلة الدكتوراه <span class="tab-count" id="countDir">31</span>
+                </button>
+            </div>
+
+            <!-- Secondary Filters -->
+            <div class="secondary-filters">
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 6px;">المرحلة الدراسية:</label>
+                    <select id="degreeFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">جميع المراحل</option>
+                        <option value="ماجستير">ماجستير (Master's)</option>
+                        <option value="دكتوراه">دكتوراه (PhD)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 6px;">نسبة التوافق مع ملفك:</label>
+                    <select id="matchFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">جميع نسب الجاهزية</option>
+                        <option value="95">جاهزية فائقة (95%+ تقديم فوري)</option>
+                        <option value="90">مؤهلة بقوة (90%+ ينقص آيلتس فقط)</option>
+                        <option value="85">مؤهلة (85%+ تتطلب مقترح/مشرف)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 6px;">نوع التمويل:</label>
+                    <select id="fundingFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">كل أنواع التمويل</option>
+                        <option value="تمويل كامل">تمويل كامل 100%</option>
+                        <option value="وظيفة">وظيفة بحثية براتب</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <!-- Edit notice & Auto-Save bar -->
+        <!-- Edit Notice Bar -->
         <div class="edit-notice-bar" id="editNoticeBar">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span>✏️</span>
-                <span><strong>وضع التعديل المباشر نشط:</strong> يمكنك الضغط على أي خلية في الجدول لتعديلها. التعديلات تحفظ تلقائياً في متصفحك!</span>
+                <span style="font-size: 13.5px; font-weight: 700; color: #92400e;">لقد قمتِ بإجراء تعديلات في الجدول. لا تنسي حفظ التغييرات محلياً!</span>
             </div>
-            <button class="btn btn-primary" onclick="saveToStorage(true)">
-                <span>💾</span> حفظ التعديلات الآن
-            </button>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;" onclick="saveToStorage(true)">💾 حفظ التعديلات الآن</button>
+            </div>
         </div>
 
-        <!-- Main Table -->
-        <div class="table-responsive">
-            <table id="scholarshipsTable">
-                <thead>
-                    <tr>
-                        <th style="width: 45px; text-align: center;">#</th>
-                        <th style="width: 260px;">المنحة / المنظمة</th>
-                        <th style="width: 170px;">التصنيف</th>
-                        <th style="width: 130px;">المرحلة</th>
-                        <th style="width: 140px;">الرابط الرسمي</th>
-                        <th style="min-width: 300px;">الشروط الأساسية والمتطلبات</th>
-                        <th style="width: 160px;">ميعاد البداية</th>
-                        <th style="width: 160px;">آخر موعد (Deadline)</th>
-                        <th style="min-width: 220px;">التمويل والملاحظات</th>
-                        <th style="width: 90px; text-align: center;">إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <!-- Populated via Javascript -->
-                </tbody>
-            </table>
+        <!-- Table Card -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table id="scholarshipsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;">#</th>
+                            <th style="width: 260px;">المنحة والتصنيف</th>
+                            <th style="width: 170px; text-align: center;">نسبة التوافق مع الـ CV</th>
+                            <th style="width: 360px;">المتطلبات التفصيلية والشروط</th>
+                            <th style="min-width: 380px;">طرح الـ CV: المتبقي لاستيفاء الشروط 100%</th>
+                            <th style="width: 170px;">مواعيد التقديم والتمويل</th>
+                            <th style="width: 80px; text-align: center;">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Populated via Javascript -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -898,16 +1031,20 @@ html_template = """<!DOCTYPE html>
                         <option value="ماجستير">ماجستير</option>
                         <option value="دكتوراه">دكتوراه</option>
                         <option value="ماجستير ودكتوراه">ماجستير ودكتوراه</option>
-                        <option value="زمالة / وظيفة بحثية">زمالة / وظيفة بحثية</option>
+                        <option value="وظيفة بحثية ممولة">وظيفة بحثية ممولة</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>الرابط الرسمي *</label>
+                    <label>الرابط الرسمي المباشر *</label>
                     <input type="url" id="newLink" class="form-control" placeholder="https://..." required>
                 </div>
                 <div class="form-group">
-                    <label>الشروط الأساسية والمتطلبات *</label>
-                    <textarea id="newReqs" class="form-control" placeholder="اكتبي المؤهل المطلوب، شرط السن، اللغة، التخصصات..." required></textarea>
+                    <label>المتطلبات التفصيلية والشروط *</label>
+                    <textarea id="newReqs" class="form-control" rows="3" placeholder="المؤهل المطلوب، شرط السن، اللغة، التخصصات..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>طرح الـ CV: المتبقي لاستيفاء الشروط 100%</label>
+                    <textarea id="newGap" class="form-control" rows="3" placeholder="ما يستوفيه ملفك وما ينقصك للتقديم..."></textarea>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
@@ -920,7 +1057,7 @@ html_template = """<!DOCTYPE html>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>نوع التمويل والملاحظات</label>
+                    <label>نوع التمويل</label>
                     <input type="text" id="newNotes" class="form-control" placeholder="مثال: تمويل كامل 100% يشمل السكن والراتب">
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
@@ -928,6 +1065,17 @@ html_template = """<!DOCTYPE html>
                     <button type="submit" class="btn btn-primary">حفظ الإضافة</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Quick View / Full Modal -->
+    <div class="modal-overlay" id="quickViewModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="qvTitle">تفاصيل المنحة والمطابقة</h3>
+                <button class="close-modal-btn" onclick="closeQuickView()">&times;</button>
+            </div>
+            <div id="qvContent"></div>
         </div>
     </div>
 
@@ -940,7 +1088,7 @@ html_template = """<!DOCTYPE html>
     <!-- Application Script -->
     <script>
         const INITIAL_DATA = """ + data_json_str + """;
-        const STORAGE_KEY = 'radwa_scholarships_data_v3';
+        const STORAGE_KEY = 'radwa_scholarships_data_v4';
         
         let scholarships = [];
         let activeCategory = 'all';
@@ -963,20 +1111,6 @@ html_template = """<!DOCTYPE html>
         // Save data to localStorage
         function saveToStorage(notify = false) {
             try {
-                const rows = document.querySelectorAll('#tableBody tr');
-                if (rows.length > 0) {
-                    rows.forEach(row => {
-                        const id = row.getAttribute('data-id');
-                        const item = scholarships.find(s => s.id === id);
-                        if (item) {
-                            item.name_ar = row.querySelector('.col-name').innerText.trim();
-                            item.requirements = row.querySelector('.col-reqs').innerText.trim();
-                            item.start_date = row.querySelector('.col-start').innerText.trim();
-                            item.deadline = row.querySelector('.col-deadline').innerText.trim();
-                            item.funding = row.querySelector('.col-notes').innerText.trim();
-                        }
-                    });
-                }
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(scholarships));
                 if (notify) {
                     showToast('تم حفظ جميع تعديلاتك بنجاح في المتصفح!', '💾');
@@ -1003,8 +1137,25 @@ html_template = """<!DOCTYPE html>
             if (cat.includes('أفريقيا') || cat.includes('النامية')) return '<span class="badge badge-africa">🌍 أفريقيا والدول النامية</span>';
             if (cat.includes('حكومية') || cat.includes('دولية')) return '<span class="badge badge-gov">🏛️ منحة حكومية عالمية</span>';
             if (cat.includes('تكنولوجيا') || cat.includes('العلوم') || cat.includes('بيوتكنولوجي')) return '<span class="badge badge-biotech">🧬 بيوتكنولوجي وأبحاث</span>';
-            if (cat.includes('جامعات') || cat.includes('مؤسسات')) return '<span class="badge badge-uni">🎓 جامعة / مؤسسة كبرى</span>';
-            return '<span class="badge badge-dir">🔍 محرك / دليل بحث</span>';
+            if (cat.includes('جامعات') || cat.includes('مؤسسات')) return '<span class="badge badge-uni">🎓 جامعة كبرى</span>';
+            return '<span class="badge badge-dir">💼 وظيفة / دليل بحث</span>';
+        }
+
+        // Match Rate Badge Helper
+        function getMatchBadge(rate, status) {
+            const num = parseInt(rate) || 90;
+            let cls = 'match-90';
+            if (num >= 95) cls = 'match-95';
+            else if (num >= 90) cls = 'match-90';
+            else if (num >= 85) cls = 'match-85';
+            else cls = 'match-80';
+
+            return `
+                <div style="text-align: center;">
+                    <div class="match-badge ${cls}">🎯 توافق ${rate}</div>
+                    <span class="readiness-text">${status || 'مؤهلة للتقديم'}</span>
+                </div>
+            `;
         }
 
         // Render Table Rows
@@ -1012,6 +1163,7 @@ html_template = """<!DOCTYPE html>
             const tbody = document.getElementById('tableBody');
             const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
             const degreeVal = document.getElementById('degreeFilter').value;
+            const matchVal = document.getElementById('matchFilter').value;
             const fundingVal = document.getElementById('fundingFilter').value;
 
             tbody.innerHTML = '';
@@ -1029,6 +1181,12 @@ html_template = """<!DOCTYPE html>
                     return;
                 }
 
+                // Match Rate Filter
+                if (matchVal !== 'all') {
+                    const r = parseInt(item.match_rate) || 90;
+                    if (r < parseInt(matchVal)) return;
+                }
+
                 // Funding Filter
                 if (fundingVal !== 'all') {
                     if (fundingVal === 'تمويل كامل' && !item.funding.includes('كامل')) return;
@@ -1037,7 +1195,7 @@ html_template = """<!DOCTYPE html>
 
                 // Search Filter
                 if (searchVal) {
-                    const textSearch = (item.name + ' ' + (item.name_ar||'') + ' ' + item.category + ' ' + item.requirements + ' ' + item.start_date + ' ' + item.deadline + ' ' + item.funding + ' ' + (item.notes||'')).toLowerCase();
+                    const textSearch = (item.name + ' ' + (item.name_ar||'') + ' ' + item.category + ' ' + (item.detailed_requirements||'') + ' ' + (item.cv_gap_analysis||'') + ' ' + item.start_date + ' ' + item.deadline + ' ' + item.funding + ' ' + (item.notes||'')).toLowerCase();
                     if (!textSearch.includes(searchVal)) {
                         return;
                     }
@@ -1048,24 +1206,46 @@ html_template = """<!DOCTYPE html>
                 const tr = document.createElement('tr');
                 tr.setAttribute('data-id', item.id);
 
-                const displayName = item.name_ar && item.name_ar !== item.name ? `<strong>${item.name_ar}</strong><br><small style="color:var(--text-muted); font-family: 'Plus Jakarta Sans', sans-serif;">${item.name}</small>` : `<strong>${item.name}</strong>`;
+                const displayName = item.name_ar && item.name_ar !== item.name ? 
+                    `<div class="scholarship-title">${item.name_ar}</div><div class="scholarship-title-en">${item.name}</div>` : 
+                    `<div class="scholarship-title">${item.name}</div>`;
+
+                const reqText = item.detailed_requirements || item.requirements || 'راجع الموقع الرسمي';
+                const gapText = item.cv_gap_analysis || 'تطابق مباشر مع ملفكِ الأكاديمي';
 
                 tr.innerHTML = `
                     <td style="text-align: center; color: var(--text-muted); font-weight: 700;">${count}</td>
-                    <td class="col-name" contenteditable="true" oninput="markEdited()">${displayName}</td>
-                    <td>${getCategoryBadge(item.category)}</td>
-                    <td><span class="degree-badge">${item.degree}</span></td>
                     <td>
-                        <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="link-pill" title="فتح الموقع الرسمي">
-                            🔗 فتح الموقع
-                        </a>
+                        ${displayName}
+                        <div class="tags-row">
+                            ${getCategoryBadge(item.category)}
+                            <span class="badge badge-degree">${item.degree}</span>
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="link-pill" title="فتح الموقع الرسمي">
+                                🔗 الموقع الرسمي
+                            </a>
+                        </div>
                     </td>
-                    <td class="col-reqs" contenteditable="true" oninput="markEdited()" style="line-height: 1.5; font-size: 12.5px;">${item.requirements}</td>
-                    <td class="col-start" contenteditable="true" oninput="markEdited()"><span class="date-box">📅 ${item.start_date}</span></td>
-                    <td class="col-deadline" contenteditable="true" oninput="markEdited()"><span class="date-box date-deadline">⏰ ${item.deadline}</span></td>
-                    <td class="col-notes" contenteditable="true" oninput="markEdited()" style="font-size: 12px; color: var(--text-muted);">${item.funding} ${item.notes ? '<br><small>💡 ' + item.notes + '</small>' : ''}</td>
+                    <td>
+                        ${getMatchBadge(item.match_rate, item.readiness_status)}
+                    </td>
+                    <td>
+                        <div class="req-box" contenteditable="true" oninput="markEdited()">${reqText}</div>
+                    </td>
+                    <td>
+                        <div class="gap-box" contenteditable="true" oninput="markEdited()">${gapText}</div>
+                    </td>
+                    <td>
+                        <span class="date-box">📅 <strong>البداية:</strong> ${item.start_date}</span>
+                        <span class="date-box date-deadline">⏰ <strong>آخر موعد:</strong> ${item.deadline}</span>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                            💰 ${item.funding}
+                        </div>
+                    </td>
                     <td style="text-align: center;">
                         <div class="action-btns-cell">
+                            <button class="icon-btn" onclick="openQuickView('${item.id}')" title="عرض بطاقة التفاصيل الشاملة">👁️</button>
                             <button class="icon-btn" onclick="copyLink('${item.link}')" title="نسخ رابط المنحة">📋</button>
                             <button class="icon-btn delete-btn" onclick="deleteItem('${item.id}')" title="حذف المنحة">🗑️</button>
                         </div>
@@ -1078,14 +1258,59 @@ html_template = """<!DOCTYPE html>
             if (count === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
                             <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
                             <strong>لم يتم العثور على أي منحة تطابق البحث أو الفلاتر المختارة!</strong>
-                            <p style="font-size: 12px; margin-top: 4px;">جربي إزالة بعض الكلمات من شريط البحث أو تغيير التصنيف.</p>
+                            <p style="font-size: 12px; margin-top: 4px;">جربي إزالة بعض الكلمات من شريط البحث أو تغيير خيارات التوافق والتصنيف.</p>
                         </td>
                     </tr>
                 `;
             }
+        }
+
+        // Quick View Modal
+        function openQuickView(id) {
+            const item = scholarships.find(s => s.id === id);
+            if (!item) return;
+
+            document.getElementById('qvTitle').innerText = item.name_ar || item.name;
+            const content = `
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                        ${getCategoryBadge(item.category)}
+                        <span class="badge badge-degree">${item.degree}</span>
+                        <span class="match-badge match-95">🎯 نسبة التوافق: ${item.match_rate || '90%'}</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-muted); font-family: 'Plus Jakarta Sans', sans-serif;">${item.name}</p>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <h4 style="font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 6px;">📋 المتطلبات التفصيلية والشروط:</h4>
+                    <div class="req-box" style="max-width: 100%; font-size: 13px;">${item.detailed_requirements || item.requirements}</div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <h4 style="font-size: 14px; font-weight: 800; color: var(--primary); margin-bottom: 6px;">⚖️ طرح الـ CV الخاص بكِ والمتبقي لاستيفاء الشروط 100%:</h4>
+                    <div class="gap-box" style="max-width: 100%; font-size: 13px;">${item.cv_gap_analysis}</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--bg-primary); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+                    <div>📅 <strong>ميعاد البداية:</strong> ${item.start_date}</div>
+                    <div style="color: #dc2626;">⏰ <strong>الموعد النهائي:</strong> ${item.deadline}</div>
+                    <div style="grid-column: span 2;">💰 <strong>نوع التمويل:</strong> ${item.funding}</div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <a href="${item.link}" target="_blank" class="btn btn-primary">🔗 الانتقال للموقع الرسمي</a>
+                    <button class="btn btn-secondary" onclick="closeQuickView()">إغلاق</button>
+                </div>
+            `;
+            document.getElementById('qvContent').innerHTML = content;
+            document.getElementById('quickViewModal').classList.add('active');
+        }
+
+        function closeQuickView() {
+            document.getElementById('quickViewModal').classList.remove('active');
         }
 
         // Track when user edits a cell
@@ -1096,16 +1321,16 @@ html_template = """<!DOCTYPE html>
         // Update statistics
         function updateStats() {
             const total = scholarships.length;
+            const match95 = scholarships.filter(s => (parseInt(s.match_rate) || 0) >= 95).length;
             const africa = scholarships.filter(s => s.category.includes('أفريقيا') || s.category.includes('النامية')).length;
-            const masters = scholarships.filter(s => s.degree.includes('ماجستير')).length;
-            const phd = scholarships.filter(s => s.degree.includes('دكتوراه') || s.degree.includes('وظيفة')).length;
-            const biotech = scholarships.filter(s => s.category.includes('تكنولوجيا') || s.requirements.toLowerCase().includes('biotech') || s.name.toLowerCase().includes('biotech')).length;
+            const biotech = scholarships.filter(s => s.category.includes('تكنولوجيا') || (s.detailed_requirements||'').toLowerCase().includes('biotech')).length;
+            const phd = scholarships.filter(s => s.degree.includes('دكتوراه') || s.degree.includes('وظيفة') || s.category.includes('محركات')).length;
 
             document.getElementById('statTotal').innerText = total;
+            document.getElementById('statMatch95').innerText = match95;
             document.getElementById('statAfrica').innerText = africa;
-            document.getElementById('statMasters').innerText = masters;
-            document.getElementById('statPhd').innerText = phd;
             document.getElementById('statBiotech').innerText = biotech;
+            document.getElementById('statPhd').innerText = phd;
 
             // Tab counts
             document.getElementById('countAll').innerText = total;
@@ -1150,14 +1375,14 @@ html_template = """<!DOCTYPE html>
             });
         }
 
-        // Delete an item
+        // Delete item
         function deleteItem(id) {
-            if (confirm('هل أنتِ متأكدة من حذف هذه الفرصة؟')) {
+            if (confirm('هل أنتِ متأكدة من رغبتك في حذف هذه الفرصة من القائمة؟')) {
                 scholarships = scholarships.filter(s => s.id !== id);
-                saveToStorage();
                 renderTable();
                 updateStats();
-                showToast('تم حذف المنحة بنجاح!', '🗑️');
+                saveToStorage();
+                showToast('تم حذف المنحة من القائمة بنجاح!', '🗑️');
             }
         }
 
@@ -1170,43 +1395,55 @@ html_template = """<!DOCTYPE html>
             document.getElementById('addModal').classList.remove('active');
         }
 
-        // Handle Add New Form Submit
+        // Handle Add New
         function handleAddNew(e) {
             e.preventDefault();
-            const newObj = {
+            const name = document.getElementById('newName').value.trim();
+            const category = document.getElementById('newCategory').value;
+            const degree = document.getElementById('newDegree').value;
+            const link = document.getElementById('newLink').value.trim();
+            const reqs = document.getElementById('newReqs').value.trim();
+            const gap = document.getElementById('newGap').value.trim() || 'تطابق مباشر مع ملفكِ الأكاديمي';
+            const start = document.getElementById('newStart').value.trim() || 'حسب دورة البرنامج السنوية';
+            const deadline = document.getElementById('newDeadline').value.trim() || 'راجع الموقع الرسمي';
+            const notes = document.getElementById('newNotes').value.trim() || 'تمويل كامل أو جزئي';
+
+            const newEntry = {
                 id: 'CUSTOM-' + Date.now(),
-                name: document.getElementById('newName').value.trim(),
-                name_ar: document.getElementById('newName').value.trim(),
-                category: document.getElementById('newCategory').value,
-                degree: document.getElementById('newDegree').value,
-                link: document.getElementById('newLink').value.trim(),
-                requirements: document.getElementById('newReqs').value.trim(),
-                start_date: document.getElementById('newStart').value.trim() || 'حسب الدورة السنوية',
-                deadline: document.getElementById('newDeadline').value.trim() || 'راجع الموقع الرسمي',
-                funding: document.getElementById('newNotes').value.trim() || 'تمويل دراسي',
+                name: name,
+                name_ar: name,
+                category: category,
+                degree: degree,
+                link: link,
+                detailed_requirements: reqs,
+                cv_gap_analysis: gap,
+                match_rate: '90%',
+                readiness_status: 'مؤهلة للتقديم',
+                start_date: start,
+                deadline: deadline,
+                funding: notes,
                 notes: ''
             };
 
-            scholarships.unshift(newObj);
+            scholarships.unshift(newEntry);
             saveToStorage();
             renderTable();
             updateStats();
             closeAddModal();
-            e.target.reset();
-            showToast('تمت إضافة المنحة الجديدة بنجاح إلى القائمة!', '🎉');
+            showToast('تمت إضافة المنحة بنجاح إلى قاعدة البيانات!', '🎉');
+            document.getElementById('addForm').reset();
         }
 
         // Theme Toggle
         function toggleTheme() {
-            const body = document.body;
-            const current = body.getAttribute('data-theme');
+            const current = document.body.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
-            body.setAttribute('data-theme', next);
-            document.getElementById('themeIcon').innerText = next === 'dark' ? '☀️' : '🌙';
+            document.body.setAttribute('data-theme', next);
             localStorage.setItem('radwa_scholarships_theme', next);
+            document.getElementById('themeIcon').innerText = next === 'dark' ? '☀️' : '🌙';
         }
 
-        // Toast Helper
+        // Toast Message
         function showToast(msg, icon = '✅') {
             const toast = document.getElementById('toastBox');
             document.getElementById('toastMsg').innerText = msg;
@@ -1225,8 +1462,11 @@ html_template = """<!DOCTYPE html>
                 "اسم المنحة / المنظمة": item.name_ar || item.name,
                 "التصنيف": item.category,
                 "المرحلة الدراسية": item.degree,
+                "نسبة التوافق مع الـ CV": item.match_rate || "90%",
+                "حالة الاستيفاء والجاهزية": item.readiness_status || "مؤهلة للتقديم",
+                "المتطلبات التفصيلية والشروط الأكاديمية": item.detailed_requirements || item.requirements,
+                "طرح الـ CV: المتبقي لرضوى لاستيفاء الشروط 100%": item.cv_gap_analysis,
                 "الرابط الرسمي": item.link,
-                "الشروط الأساسية والمتطلبات": item.requirements,
                 "ميعاد بداية التقديم": item.start_date,
                 "آخر موعد للتقديم": item.deadline,
                 "نوع التمويل والملاحظات": item.funding + (item.notes ? " | " + item.notes : "")
@@ -1234,12 +1474,12 @@ html_template = """<!DOCTYPE html>
 
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "المنح والمؤسسات");
-            XLSX.writeFile(wb, "Scholarships_Radwa_Exported.xlsx");
-            showToast('تم تصدير ملف الإكسيل بنجاح!', '📊');
+            XLSX.utils.book_append_sheet(wb, ws, "المنح والمطابقة لرضوى");
+            XLSX.writeFile(wb, "Scholarships_Master_PhD_Radwa_CV_Matched.xlsx");
+            showToast('تم تصدير ملف الإكسيل مع مطابقة الـ CV بنجاح!', '📊');
         }
 
-        // Init on load - Default to Light Mode
+        // Init on load
         window.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('radwa_scholarships_theme') || 'light';
             document.body.setAttribute('data-theme', savedTheme);
